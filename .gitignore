@@ -1,7 +1,16 @@
-__pycache__/
-*.db
-*.pyc
+# virtual environment
+venv/
 .venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# local db files
+*.db
+
+# IDE files
 .idea/
-.env
+.vscode/
 .DS_Store
+.env
