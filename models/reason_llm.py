@@ -1,6 +1,6 @@
 import subprocess
 
-def run_reasoning_model(prompt: str) -> str:
+def run_reasoning_model_old(prompt: str) -> str:
     """
     ReAct-style reasoning model: it can either call a tool (JSON)
     or give a final answer when done.
@@ -24,3 +24,12 @@ def run_reasoning_model(prompt: str) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         return f"[error] model call failed: {e.stderr.strip()}"
+
+
+def run_reasoning_model(prompt: str) -> str:
+    import subprocess
+    print(f"\n[LLM call] prompt start >>>\n{prompt[:500]}\n<<< end prompt")
+    cmd = ["ollama", "run", "mistral", prompt]
+    result = subprocess.run(cmd, text=True, capture_output=True)
+    print(f"[LLM raw output]\n{result.stdout.strip()}\n")
+    return result.stdout.strip()
