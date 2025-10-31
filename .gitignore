@@ -1,18 +1,56 @@
-# virtual environment
+# =========================================
+# 🧠 AI Agent Lab - Git Ignore
+# =========================================
+
+# --- Virtual environments ---
 venv/
 .venv/
 
-# Python cache
+# --- Python cache ---
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pdb
 
-# local db files
+# --- Databases & local state ---
 *.db
+*.sqlite3
+/storage/
+logs/
+tmp/
 
-# IDE files
-.idea/
-.vscode/
-.DS_Store
+# --- Environment variables ---
 .env
-venv/
-venv/
+*.env
+
+# --- IDE / Editor settings ---
+.vscode/
+.idea/
+*.iml
+
+# --- macOS / system files ---
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Jupyter / Notebooks ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- Distribution / Packaging ---
+build/
+dist/
+*.egg-info/
+MANIFEST
+
+# --- Model files / embeddings (optional) ---
+*.bin
+*.pt
+*.ckpt
+*.npy
+*.npz
+
+# --- Ollama / LLM data (if exported locally) ---
+models/
+ollama/
