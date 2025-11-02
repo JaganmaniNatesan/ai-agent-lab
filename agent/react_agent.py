@@ -48,8 +48,14 @@ def _is_number(x: Any) -> bool:
     return False
 
 
+# --- Goodbye detection ---
 def _is_goodbye_query(prompt: str) -> bool:
-    return bool(re.search(r"\b(bye|goodbye|see you|later)\b", prompt.lower()))
+    # robust goodbye detection: "goodbye", "good bye", "bye", "see you", "see ya", "later"
+    return bool(re.search(
+        r"(?:^|\b)(good\s*bye|goodbye|bye|see\s+you|see\s+ya|later)(?:[.!?]|\b|$)",
+        prompt,
+        flags=re.IGNORECASE,
+    ))
 
 
 def _format_memory(pairs: List[Tuple[str, str]]) -> str:
@@ -228,7 +234,7 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
             _is_identity_query(prompt)
             or _is_first_calc_query(prompt)
             or _is_summary_query(prompt)
-            or _is_goodbye_query(prompt)
+            or _is_goodbye_query(prompt)  # <-- add this
     )
     history = load_context(session_id, limit=(20 if need_more else base_limit))
     memory_block = _format_memory(history)
@@ -281,6 +287,13 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
             final = f"Final Answer: {first_num}"
         else:
             final = "Final Answer: I couldn't find a prior calculation in this session."
+        persist_turn(session_id, prompt, final)
+        return final
+
+    # 5) Polite goodbye that uses remembered name when available
+    if _is_goodbye_query(prompt):
+        name = _find_name_in_history(history)
+        final = f"Final Answer: Goodbye {name}!" if name else "Final Answer: Goodbye!"
         persist_turn(session_id, prompt, final)
         return final
 
@@ -365,6 +378,15 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
 
         # 6) Execute tool + handle errors
         result = run_tool(norm, args)
+        # Fail-safe: if the user said goodbye but the model called 'greeting',
+        # convert the interaction into a goodbye response using remembered name.
+        if _is_goodbye_query(prompt) and norm == "greeting":
+            # prefer model arg, else remembered name, else generic
+            name = (args.get("name") if isinstance(args, dict) else None) or _find_name_in_history(history) or "Friend"
+            final = f"Final Answer: Goodbye {name}!"
+            persist_turn(session_id, prompt, final)
+            print("🛑 Auto-finalized: converted greeting to goodbye.")
+            return final
         print(f"🧰 Tool call: {norm}({args}) -> {result}")
         last_result = result
 
