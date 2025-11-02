@@ -1,13 +1,11 @@
-#!/bin/bash
-# ======================================================
-# 🧠 AI-Agent-Lab ReAct & Memory Test Loop
-# Runs a series of POST /agent/react calls using curl
-# ======================================================
+#!/usr/bin/env bash
+set -euo pipefail
+base="http://127.0.0.1:8000"
+sid="sess_suiteA"
 
-URL="http://127.0.0.1:8000/agent/react"
-SESSION_ID="sess_demo"
+curl -s -X DELETE "$base/memory/clear/$sid" >/dev/null
 
-declare -a TESTS=(
+prompts=(
   "Hello, my name is Jagan."
   "Remember my name for later."
   "Add 10 and 5."
@@ -20,20 +18,12 @@ declare -a TESTS=(
   "Goodbye!"
 )
 
-echo "=== 🧩 Running 10-turn ReAct Memory Test ==="
-echo "Session ID: $SESSION_ID"
-echo "-------------------------------------------"
-
-for i in "${!TESTS[@]}"; do
-  PROMPT="${TESTS[$i]}"
-  echo -e "\n🧠 Turn $((i+1)) - Prompt: \"$PROMPT\""
-
-  curl -s -X POST "$URL" \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\": \"$PROMPT\", \"session_id\": \"$SESSION_ID\"}" \
-    | jq -r '.response'
-
-  sleep 2  # small delay for readability
+i=1
+for p in "${prompts[@]}"; do
+  echo "🧠 A-$i: $p"
+  curl -s -X POST "$base/agent/react" \
+    -H 'Content-Type: application/json' \
+    -d "{\"session_id\":\"$sid\",\"prompt\":\"$p\"}"
+  echo -e "\n"
+  ((i++))
 done
-
-echo -e "\n✅ Test sequence complete."
