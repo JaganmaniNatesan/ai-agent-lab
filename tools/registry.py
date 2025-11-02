@@ -2,11 +2,13 @@
 from tools import math_tool, text_tool
 
 TOOLS = {
-    "add_numbers":  math_tool.add_numbers,
-    "multiply":     math_tool.multiply,
-    "divide":       math_tool.divide,
+    "add_numbers": math_tool.add_numbers,
+    "multiply": math_tool.multiply,
+    "divide": math_tool.divide,
     "to_uppercase": text_tool.to_uppercase,
-    "greeting":     text_tool.greeting,   # normalize to lowercase
+    "greeting": text_tool.greeting,
+    # optional:
+    "number_to_words_upper": text_tool.number_to_words_upper,
 }
 
 ALIASES = {
@@ -22,12 +24,14 @@ ALIASES = {
     "FINAL_ANSWER": "__final_answer__",
 }
 
+
 def resolve_tool(name: str) -> str:
     if not name: return ""
     if name in ALIASES: return ALIASES[name]
     lname = name.lower()
     if lname in TOOLS: return lname
     return ALIASES.get(lname, lname)
+
 
 def run_tool(name: str, args: dict):
     norm = resolve_tool(name)

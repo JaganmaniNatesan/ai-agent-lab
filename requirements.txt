@@ -18,7 +18,7 @@ coloredlogs==15.0.1
 distro==1.9.0
 durationpy==0.10
 et_xmlfile==2.0.0
-fastapi==0.120.3
+fastapi~=0.120.2
 filelock==3.20.0
 flatbuffers==25.9.23
 fsspec==2025.10.0
@@ -114,3 +114,5 @@ watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==15.0.1
 zipp==3.23.0
+
+num2words~=0.5.14
