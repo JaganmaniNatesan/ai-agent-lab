@@ -1,35 +1,41 @@
+# models/reason_llm.py
+import os
+import re
 import subprocess
 
-def run_reasoning_model_old(prompt: str) -> str:
-    """
-    ReAct-style reasoning model: it can either call a tool (JSON)
-    or give a final answer when done.
-    """
-    system_prompt = (
-        "You are an intelligent ReAct agent. "
-        "You can reason, decide when to use tools, and when you have the final answer. "
-        "At each turn, respond with EXACTLY ONE of the following formats:\n"
-        "1. A JSON object: {\"tool\": \"<tool_name>\", \"args\": {...}}\n"
-        "2. A line beginning with: Final Answer: <your concise answer>\n\n"
-        "Rules:\n"
-        "- NEVER include code blocks or ``` markers.\n"
-        "- If you already have enough information, end with 'Final Answer: ...'."
-    )
+# Switch models via env var; llama3.1 is most obedient for JSON/tools.
+MODEL_NAME = os.environ.get("AGENT_MODEL", "llama3.1:latest")
 
-    cmd = ["ollama", "run", "mistral", f"{system_prompt}\nUser: {prompt}"]
-    try:
-        result = subprocess.run(
-            cmd, text=True, check=True, capture_output=True
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        return f"[error] model call failed: {e.stderr.strip()}"
-
+def _extract_first_json_block(text: str) -> str | None:
+    """Return the first balanced {...} object or None."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i+1]
+    return None
 
 def run_reasoning_model(prompt: str) -> str:
-    import subprocess
-    print(f"\n[LLM call] prompt start >>>\n{prompt[:500]}\n<<< end prompt")
-    cmd = ["ollama", "run", "mistral", prompt]
-    result = subprocess.run(cmd, text=True, capture_output=True)
-    print(f"[LLM raw output]\n{result.stdout.strip()}\n")
-    return result.stdout.strip()
+    print(f"\n[LLM model] {MODEL_NAME}")
+    cmd = ["ollama", "run", MODEL_NAME, prompt]
+
+    res = subprocess.run(cmd, text=True, capture_output=True)
+    if res.returncode != 0:
+        print("[LLM STDERR]\n", res.stderr)
+        return ""
+
+    out = (res.stdout or "").strip()
+    # Trim common noise early (controller also handles this).
+    out_clean = re.sub(r"```json\s*|\s*```", "", out, flags=re.IGNORECASE).strip()
+    out_clean = re.sub(r"^\s*TOOL\s+CALL\s*:?\s*", "", out_clean, flags=re.IGNORECASE).strip()
+
+    # If there's JSON, return just the JSON; else return the text (e.g., Final Answer: ...).
+    block = _extract_first_json_block(out_clean)
+    return block if block else out_clean

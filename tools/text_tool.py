@@ -1,2 +1,6 @@
-def to_upper_case(text: str) -> str:
+def to_uppercase(text: str) -> str:
     return text.upper()
+
+
+def greeting(name: str) -> str:
+    return f"Hello {name}"
