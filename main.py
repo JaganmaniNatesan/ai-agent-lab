@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from agent.react_agent import run_react
+from agent.react.controller import run_react
 from memory.short_memory import save_message, get_recent_messages, clear_memory
 from models.llm import run_local_model, run_tool_request
 from models.stream_llm import stream_local_model
