@@ -1,39 +1,65 @@
 # agent/long_memory/embeddings.py
+from __future__ import annotations
+
 import os
-from typing import List
+from functools import lru_cache
+from typing import Iterable, List
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
-MODEL_ALIASES = {
-    "minilm": "sentence-transformers/all-MiniLM-L6-v2",  # 384d
-    "bge": "BAAI/bge-base-en-v1.5",  # 768d (add prefixes)
-    "e5": "intfloat/e5-base-v2",  # 768d (add prefixes)
-    "nomic": "nomic-ai/nomic-embed-text-v1",  # 768d
+# -----------------------------
+# Model selection (local only)
+# -----------------------------
+# USE_MODEL env values:
+#   minilm  -> sentence-transformers/all-MiniLM-L6-v2 (384 dims)
+#   bge     -> BAAI/bge-small-en-v1.5                    (512 dims)
+#   e5      -> intfloat/e5-small-v2                      (384 dims)
+#
+# Example:
+#   USE_MODEL=bge python -m agent.long_memory.faiss_play build
+#
+
+_MODEL_ALIASES = {
+    "minilm": "sentence-transformers/all-MiniLM-L6-v2",
+    "bge": "BAAI/bge-small-en-v1.5",
+    "e5": "intfloat/e5-small-v2",
 }
 
 
-def _resolve_model_name() -> tuple[str, str]:
-    key = (os.getenv("EMBED_MODEL") or "minilm").lower()
-    return key, MODEL_ALIASES.get(key, MODEL_ALIASES["minilm"])
+def _selected_alias() -> str:
+    raw = (os.getenv("USE_MODEL") or "minilm").strip().lower()
+    return raw if raw in _MODEL_ALIASES else "minilm"
 
 
-def load_embedder():
-    key, name = _resolve_model_name()
-    print(f"[embeddings] loading: {name} ({key})")
+def resolved_model_name() -> str:
+    return _MODEL_ALIASES[_selected_alias()]
+
+
+@lru_cache(maxsize=1)
+def _load_model():
+    name = resolved_model_name()
+    print(f"[embeddings] loading: {name} ({_selected_alias()})")
+    from sentence_transformers import SentenceTransformer
+
+    # For BGE/e5, pooling/normalization handled the same way as MiniLM here.
     model = SentenceTransformer(name)
-    return key, model
+    return model
 
 
-def _maybe_prefix(texts: List[str], model_key: str, mode: str) -> List[str]:
-    # Asymmetric models benefit from query/passages prefixes
-    if model_key in {"bge", "e5"}:
-        prefix = "query: " if mode == "query" else "passage: "
-        return [prefix + t for t in texts]
-    return texts
+def _to_array(vectors: List[List[float]]) -> np.ndarray:
+    arr = np.asarray(vectors, dtype="float32")
+    # Normalize for cosine (so dot == cosine)
+    norms = np.linalg.norm(arr, axis=1, keepdims=True) + 1e-12
+    return arr / norms
 
 
-def embed_texts(model: SentenceTransformer, texts: List[str], model_key: str, mode: str) -> np.ndarray:
-    texts = _maybe_prefix(texts, model_key, mode)
-    vecs = model.encode(texts, normalize_embeddings=True, convert_to_numpy=True)
-    return vecs.astype("float32")
+def embed_texts(texts: Iterable[str]) -> np.ndarray:
+    """Batch embed a list of strings -> normalized float32 (n, d)."""
+    model = _load_model()
+    vectors = model.encode(list(texts), batch_size=64, convert_to_numpy=True, show_progress_bar=False)
+    return _to_array(vectors.tolist())
+
+
+def embed_query(text: str) -> np.ndarray:
+    """Embed a single query string -> normalized (1, d)."""
+    return embed_texts([text])

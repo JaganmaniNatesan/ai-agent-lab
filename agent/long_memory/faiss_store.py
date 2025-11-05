@@ -1,117 +1,91 @@
 # agent/long_memory/faiss_store.py
+from __future__ import annotations
+
 import json
 import os
+from dataclasses import dataclass, field
+from typing import List, Tuple
 
+import faiss
 import numpy as np
 
-try:
-    import faiss
-except ImportError:
-    faiss = None
-
 INDEX_FILE = "index.faiss"
-IDS_FILE = "ids.json"
-TEXTS_FILE = "texts.json"
-VECS_FILE = "vectors.npy"  # still used for non-FAISS (numpy) fallback
+META_FILE = "meta.json"
 
 
+@dataclass
 class FaissStore:
-    """
-    Minimal vector store that supports two modes:
-      - FAISS backend: uses self.index (faiss.Index / IndexIDMap2)
-      - NumPy backend: uses self.vectors (np.ndarray) + self.ids/texts
-    """
+    """Cosine similarity via inner-product FAISS (requires normalized vectors)."""
 
-    def __init__(self, dim: int, use_faiss: bool = True):
-        self.dim = dim
-        self.use_faiss = use_faiss and (faiss is not None)
-        self.ids: list[str] = []
-        self.texts: list[str] = []
+    dim: int
+    index: faiss.Index = field(init=False)
+    texts: List[str] = field(default_factory=list)
+    metas: List[dict] = field(default_factory=list)
 
-        if self.use_faiss:
-            # IP for cosine-normalised vectors; wrap with ID map so we persist our ids
-            base = faiss.IndexFlatIP(dim)
-            self.index = faiss.IndexIDMap2(base)
-            self.vectors = None  # not used
-        else:
-            self.index = None
-            self.vectors = np.zeros((0, dim), dtype="float32")
+    def __post_init__(self):
+        # Inner product == cosine if inputs are L2-normalized
+        self.index = faiss.IndexFlatIP(self.dim)
 
-    # --- add vectors ---
-    def add(self, vecs: np.ndarray, ids: list[str], texts: list[str]):
-        vecs = vecs.astype("float32")
-        assert vecs.shape[0] == len(ids) == len(texts)
-        self.ids.extend(ids)
+    # -------- build/add/search --------
+    def build(self, vectors: np.ndarray, texts: List[str], metas: List[dict]):
+        assert vectors.ndim == 2 and vectors.shape[0] == len(texts) == len(metas)
+        assert vectors.dtype == np.float32
+        self.index.add(vectors)
+        self.texts = list(texts)
+        self.metas = list(metas)
+
+    def add(self, vectors: np.ndarray, texts: List[str], metas: List[dict]):
+        assert vectors.ndim == 2 and vectors.shape[0] == len(texts) == len(metas)
+        self.index.add(vectors.astype("float32"))
         self.texts.extend(texts)
+        self.metas.extend(metas)
 
-        if self.use_faiss:
-            # map custom integer ids for FAISS (use positional indices)
-            int_ids = np.arange(len(self.ids) - len(ids), len(self.ids)).astype("int64")
-            self.index.add_with_ids(vecs, int_ids)
-        else:
-            self.vectors = np.vstack([self.vectors, vecs])
+    def search(self, query_vec: np.ndarray, top_k: int = 5) -> List[Tuple[float, str, dict, int]]:
+        """
+        Returns list of (score, text, meta, doc_id)
+        Scores are cosine similarities in [0, 1+epsilon].
+        """
+        if query_vec.ndim == 1:
+            query_vec = query_vec.reshape(1, -1)
+        assert query_vec.shape[1] == self.dim
 
-    # --- search ---
-    def search(self, q: np.ndarray, k: int = 5):
-        q = q.astype("float32")
-        if self.use_faiss:
-            scores, int_ids = self.index.search(q, k)
-            # translate back to our string ids/texts by position
-            results = []
-            for row, row_ids in zip(scores, int_ids):
-                row_result = []
-                for pos, score in zip(row_ids, row):
-                    if pos == -1:
-                        continue
-                    # our ids/texts are positional
-                    row_result.append((self.ids[pos], self.texts[pos], float(score)))
-                results.append(row_result)
-            return results
-        else:
-            # naive cosine using numpy
-            norms = np.linalg.norm(self.vectors, axis=1, keepdims=True) + 1e-8
-            base = self.vectors / norms
-            qn = q / (np.linalg.norm(q, axis=1, keepdims=True) + 1e-8)
-            sims = qn @ base.T
-            topk = np.argpartition(-sims, kth=min(k, sims.shape[1] - 1))[:, :k]
-            results = []
-            for i, idxs in enumerate(topk):
-                row = sorted(
-                    [(self.ids[j], self.texts[j], float(sims[i, j])) for j in idxs],
-                    key=lambda x: x[2],
-                    reverse=True
-                )
-                results.append(row[:k])
-            return results
+        scores, ids = self.index.search(query_vec.astype("float32"), top_k)
+        out: List[Tuple[float, str, dict, int]] = []
+        for sc, ix in zip(scores[0], ids[0]):
+            if ix == -1:
+                continue
+            out.append((float(sc), self.texts[ix], self.metas[ix], int(ix)))
+        return out
 
-    # --- persistence ---
+    # -------- persistence --------
     def save(self, out_dir: str):
         os.makedirs(out_dir, exist_ok=True)
-        # ids/texts always saved
-        with open(os.path.join(out_dir, IDS_FILE), "w") as f:
-            json.dump(self.ids, f)
-        with open(os.path.join(out_dir, TEXTS_FILE), "w") as f:
-            json.dump(self.texts, f)
+        faiss.write_index(self.index, os.path.join(out_dir, INDEX_FILE))
+        with open(os.path.join(out_dir, META_FILE), "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "dim": self.dim,
+                    "texts": self.texts,
+                    "metas": self.metas,
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
-        if self.use_faiss:
-            if faiss is None:
-                raise RuntimeError("FAISS not installed but use_faiss=True")
-            faiss.write_index(self.index, os.path.join(out_dir, INDEX_FILE))
-        else:
-            # numpy fallback
-            np.save(os.path.join(out_dir, VECS_FILE), self.vectors.astype("float32"))
+    @staticmethod
+    def load(in_dir: str) -> "FaissStore":
+        index_path = os.path.join(in_dir, INDEX_FILE)
+        meta_path = os.path.join(in_dir, META_FILE)
+        if not (os.path.exists(index_path) and os.path.exists(meta_path)):
+            raise FileNotFoundError(f"FAISS store not found in {in_dir}")
 
-    @classmethod
-    def load(cls, in_dir: str, dim: int, use_faiss: bool = True):
-        store = cls(dim=dim, use_faiss=use_faiss and (faiss is not None))
-        # load ids/texts
-        with open(os.path.join(in_dir, IDS_FILE)) as f:
-            store.ids = json.load(f)
-        with open(os.path.join(in_dir, TEXTS_FILE)) as f:
-            store.texts = json.load(f)
+        index = faiss.read_index(index_path)
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
 
-        if store.use_faiss:
-            store.index = faiss.read_index(os.path.join(in_dir, INDEX_FILE))
-        else:
-            store.vectors = np.load(os.path.join(in_dir, VECS_FILE)).astype("float32")
+        store = FaissStore(dim=int(meta["dim"]))
+        store.index = index
+        store.texts = list(meta["texts"])
+        store.metas = list(meta["metas"])
         return store

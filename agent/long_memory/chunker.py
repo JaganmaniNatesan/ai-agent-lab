@@ -1,26 +1,33 @@
 # agent/long_memory/chunker.py
+from __future__ import annotations
 from typing import List
 
 
-def simple_paragraphs(text: str) -> List[str]:
-    parts = [p.strip() for p in text.split("\n\n") if p.strip()]
-    return parts or ([text.strip()] if text.strip() else [])
+def chunk_text(text: str, max_chars: int = 256, overlap: int = 32) -> List[str]:
+    """
+    Split a long string into overlapping chunks.
+    Works for documents, transcripts, Markdown, etc.
 
+    Example:
+        chunks = chunk_text(long_doc, max_chars=300, overlap=50)
 
-def sliding_window(tokens: List[str], size: int = 120, stride: int = 60) -> List[str]:
-    out = []
-    i = 0
-    while i < len(tokens):
-        chunk = tokens[i:i + size]
-        if not chunk: break
-        out.append(" ".join(chunk))
-        i += stride
-    return out
+    Returns list[str] with no chunk larger than `max_chars`,
+    and each chunk overlaps the next by `overlap` characters.
+    """
+    text = text.strip()
+    if len(text) <= max_chars:
+        return [text]
 
+    chunks = []
+    start = 0
+    end = max_chars
 
-def chunk_text(text: str, method: str = "para") -> List[str]:
-    if method == "para":
-        return simple_paragraphs(text)
-    # token-ish split (very rough)
-    toks = text.replace("\n", " ").split()
-    return sliding_window(toks, 120, 60)
+    while start < len(text):
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+
+        start = end - overlap
+        end = start + max_chars
+
+    return chunks
