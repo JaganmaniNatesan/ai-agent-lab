@@ -8,24 +8,12 @@ from typing import List, Tuple
 from agent.memory_adaptor import load_context, persist_turn
 from agent.system_prompt import SYSTEM_PROMPT
 from models.reason_llm import run_reasoning_model
-from tools.registry import run_tool, resolve_tool
-
+from tools.registry import resolve_tool, run_tool
+from .heuristics import maybe_finalize_greet, maybe_finalize_math, maybe_finalize_transform
 from .intents import classify_intent, wants_multi_step
-from .parsing import strip_noise, quote_bare_placeholders, extract_first_json
-from .prehandlers import (
-    handle_preloops,
-    is_identity_query,
-    is_first_calc_query,
-    is_summary_query,
-    is_goodbye_query,
-)
-from .heuristics import maybe_finalize_greet, maybe_finalize_transform, maybe_finalize_math
-from .utils import (
-    format_memory,
-    fill_placeholders,
-    closest_tool_hint,
-    find_name_in_history,
-)
+from .parsing import extract_first_json, quote_bare_placeholders, strip_noise
+from .prehandlers import (handle_preloops, is_first_calc_query, is_goodbye_query, is_identity_query, is_summary_query)
+from .utils import (fill_placeholders, find_name_in_history, format_memory)
 
 
 def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
@@ -56,7 +44,6 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
     print(f"SESSION: {session_id}")
     print(f"INTENT: {intent} | STEP_LIMIT: {step_limit}")
     print("============================")
-
 
     # Pre-loop short-circuits (return final answer if applicable)
     pre = handle_preloops(prompt, history, persist_turn, session_id)
@@ -115,7 +102,8 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
         # Some models return a fake tool 'FINAL ANSWER'
         norm = resolve_tool(tool)
         if norm == "__final_answer__":
-            text = (data.get("text") if isinstance(data, dict) else None)                            or (args or {}).get("text")                            or (str(last_result) if last_result is not None else "")
+            text = (data.get("text") if isinstance(data, dict) else None) or (args or {}).get("text") or (
+                str(last_result) if last_result is not None else "")
             final = f"Final Answer: {text}".strip()
             persist_turn(session_id, prompt, final)
             return final
@@ -161,9 +149,9 @@ def run_react(prompt: str, session_id: str, max_steps: int = 10) -> str:
 
         # Heuristic early-stops
         for finalize in (
-            lambda: maybe_finalize_greet(intent, norm, result),
-            lambda: maybe_finalize_transform(intent, norm, result),
-            lambda: maybe_finalize_math(intent, prompt,norm, result),
+                lambda: maybe_finalize_greet(intent, norm, result),
+                lambda: maybe_finalize_transform(intent, norm, result),
+                lambda: maybe_finalize_math(intent, prompt, norm, result),
         ):
             msg = finalize()
             if msg:

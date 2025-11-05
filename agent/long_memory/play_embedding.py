@@ -21,6 +21,18 @@ MODEL_NAME = MODEL_ALIASES.get(DEFAULT_MODEL_KEY, MODEL_ALIASES["minilm"])
 from sentence_transformers import SentenceTransformer
 
 
+# --- NEW HELPERS FOR CONSISTENT EMBEDDING ---
+
+def embed_texts(model, texts: list[str]):
+    """Embed multiple texts → np.ndarray [N, DIM]"""
+    return model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
+
+
+def embed_query(model, text: str):
+    """Embed a single text → np.ndarray [1, DIM]"""
+    return model.encode([text], convert_to_numpy=True, normalize_embeddings=True)
+
+
 def load_model(name: str) -> SentenceTransformer:
     print(f"Loading embedding model: {name} …")
     return SentenceTransformer(name, trust_remote_code=True)

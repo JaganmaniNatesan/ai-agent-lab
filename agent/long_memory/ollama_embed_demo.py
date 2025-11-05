@@ -1,8 +1,11 @@
 # /Users/jagan/ai-agent-lab/agent/long_memory/ollama_embed_demo.py
-import requests, math, json
+import json
+import math
+import requests
 
 MODEL = "nomic-embed-text:latest"
-URL   = "http://127.0.0.1:11434/api/embeddings"   # use 127.0.0.1 to avoid odd resolver issues
+URL = "http://127.0.0.1:11434/api/embeddings"  # use 127.0.0.1 to avoid odd resolver issues
+
 
 def embed_one(text: str):
     r = requests.post(URL, json={"model": MODEL, "prompt": text}, timeout=60)
@@ -18,14 +21,17 @@ def embed_one(text: str):
         raise RuntimeError(f"Empty/invalid embedding for {text!r}: {json.dumps(data)[:300]}")
     return vec
 
+
 def ollama_embed(texts):
     return [embed_one(t) for t in texts]
 
+
 def cosine_similarity(a, b):
-    dot = sum(x*y for x, y in zip(a, b))
-    na = math.sqrt(sum(x*x for x in a))
-    nb = math.sqrt(sum(y*y for y in b))
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
     return dot / (na * nb)
+
 
 if __name__ == "__main__":
     texts = ["apple", "red fruit"]

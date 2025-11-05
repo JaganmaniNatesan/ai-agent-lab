@@ -1,5 +1,6 @@
 # tools/registry.py
 from tools import math_tool, text_tool
+from tools.knowledge_tool import knowledge_search
 
 TOOLS = {
     "add_numbers": math_tool.add_numbers,
@@ -9,6 +10,7 @@ TOOLS = {
     "greeting": text_tool.greeting,
     # optional:
     "number_to_words_upper": text_tool.number_to_words_upper,
+    "knowledge_search": knowledge_search,
 }
 
 ALIASES = {
