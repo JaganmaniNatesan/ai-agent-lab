@@ -1,9 +1,10 @@
 # AI Agent Lab dependencies
-# Last updated: 2025-10-31 08:45:23.961417
+# Last updated: 2025-11-05 08:59:28.553449
 
 annotated-doc==0.0.3
 annotated-types==0.7.0
 anyio==4.11.0
+async-timeout==5.0.1
 attrs==25.4.0
 backoff==2.2.1
 bcrypt==5.0.0
@@ -15,10 +16,14 @@ charset-normalizer==3.4.4
 chromadb==1.3.0
 click==8.3.0
 coloredlogs==15.0.1
+Distance==0.1.3
 distro==1.9.0
+docopt==0.6.2
 durationpy==0.10
+einops==0.8.1
 et_xmlfile==2.0.0
-fastapi~=0.120.2
+faiss-cpu==1.12.0
+fastapi==0.120.2
 filelock==3.20.0
 flatbuffers==25.9.23
 fsspec==2025.10.0
@@ -37,9 +42,11 @@ importlib_metadata==8.7.0
 importlib_resources==6.5.2
 Jinja2==3.1.6
 joblib==1.5.2
+jsonlines==4.0.0
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
 kubernetes==34.1.0
+loguru==0.7.3
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
@@ -48,8 +55,11 @@ mpmath==1.3.0
 mypy==1.18.2
 mypy_extensions==1.1.0
 networkx==3.5
+nomic==3.7.0
+num2words==0.5.14
 numpy==2.3.4
 oauthlib==3.3.1
+ollama==0.6.0
 onnxruntime==1.23.2
 openpyxl==3.1.5
 opentelemetry-api==1.38.0
@@ -61,22 +71,26 @@ opentelemetry-semantic-conventions==0.59b0
 orjson==3.11.4
 overrides==7.7.0
 packaging==25.0
+pandas==2.3.3
 pathspec==0.12.1
 pillow==12.0.0
 platformdirs==4.5.0
 posthog==5.4.0
 protobuf==6.33.0
+pyarrow==22.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pybase64==1.4.2
 pydantic==2.12.3
 pydantic_core==2.41.4
 Pygments==2.19.2
+PyJWT==2.10.1
 PyPika==0.48.9
 pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 pytokens==0.2.0
+pytz==2025.2
 PyYAML==6.0.3
 redis==7.0.1
 referencing==0.37.0
@@ -91,7 +105,6 @@ safetensors==0.6.2
 scikit-learn==1.7.2
 scipy==1.16.3
 sentence-transformers==5.1.2
-setuptools==80.9.0
 shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
@@ -107,6 +120,7 @@ transformers==4.57.1
 typer==0.20.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
+tzdata==2025.2
 urllib3==2.3.0
 uvicorn==0.38.0
 uvloop==0.22.1
@@ -114,6 +128,3 @@ watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==15.0.1
 zipp==3.23.0
-
-num2words~=0.5.14
-ollama~=0.6.0

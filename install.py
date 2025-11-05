@@ -49,6 +49,11 @@ def install_python_packages():
         "black",
         "ruff",
         "mypy",
+        "faiss-cpu",
+        "sentence-transformers",
+        "numpy",
+        "scipy",
+        "scikit-learn"
     ]
     run([pip, "install", "--upgrade", "pip"])
     run([pip, "install", *pkgs])

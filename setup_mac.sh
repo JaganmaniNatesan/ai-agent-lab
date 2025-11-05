@@ -73,7 +73,7 @@ source "$VENV_DIR/bin/activate"
 # ---- Python packages ----
 log "Upgrading pip and installing dependencies..."
 pip install --upgrade pip
-pip install fastapi uvicorn pydantic sqlalchemy redis chromadb sentence-transformers python-dotenv black ruff mypy openpyxl
+pip install fastapi uvicorn pydantic sqlalchemy redis chromadb sentence-transformers python-dotenv black ruff mypy openpyxl faiss-cpu sentence-transformers numpy scipy scikit-learn
 
 # ---- Ollama check ----
 if command -v ollama &>/dev/null; then
